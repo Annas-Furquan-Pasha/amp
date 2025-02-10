@@ -16,132 +16,92 @@ const transporter = nodemailer.createTransport({
     },
 });
 
-// Function to send AMP emails
-const sendAMPEmail = async (instructor, action) => {
-    const ampHtml = `
-        <!doctype html>
-        <html ⚡4email>
-        <head>
-            <meta charset="utf-8">
-            <style amp4email-boilerplate>body{visibility:hidden}</style>
-            <script async src="https://cdn.ampproject.org/v0.js"></script>
-            <script async custom-element="amp-form" src="https://cdn.ampproject.org/v0/amp-form-0.1.js"></script>
-        </head>
-        <body>
-            <h1>Hello ${instructor.name}!</h1>
-            <p>Your profile has been <b>${action}</b>.</p>
+// Function to send AMP emails to multiple instructors
+const sendBatchAMPEmails = async (instructors, action) => {
+    const emailPromises = instructors.map(async (instructor) => {
+        const ampHtml = `
+            <!doctype html>
+            <html ⚡4email>
+            <head>
+                <meta charset="utf-8">
+                <style amp4email-boilerplate>body{visibility:hidden}</style>
+                <script async src="https://cdn.ampproject.org/v0.js"></script>
+                <script async custom-element="amp-form" src="https://cdn.ampproject.org/v0/amp-form-0.1.js"></script>
+            </head>
+            <body>
+                <h1>Hello ${instructor.name}!</h1>
+                <p>Your profile has been <b>${action}</b>.</p>
 
-            <p>We'd love your feedback! Please fill out the form below:</p>
+                <p>We'd love your feedback! Please fill out the form below:</p>
 
-            <form method="post"
-                action-xhr="https://your-api.com/submit-feedback"
-                target="_top">
-                <label for="feedback">Your Feedback:</label>
-                <input type="text" name="feedback" id="feedback" required>
-                <input type="hidden" name="email" value="${instructor.email}">
-                
-                <button type="submit">Submit</button>
-                
-                <div submit-success>
-                    <template type="amp-mustache">
-                        <p>Thank you! Your feedback has been received.</p>
-                    </template>
-                </div>
-                <div submit-error>
-                    <template type="amp-mustache">
-                        <p>Oops! Something went wrong. Please try again.</p>
-                    </template>
-                </div>
-            </form>
-        </body>
-        </html>
-    `;
+                <form method="post"
+                    action-xhr="https://your-api.com/data"
+                    target="_top">
+                    <label for="feedback">Your Feedback:</label>
+                    <input type="text" name="feedback" id="feedback" required>
+                    <input type="hidden" name="email" value="${instructor.email}">
+                    
+                    <button type="submit">Submit</button>
+                    
+                    <div submit-success>
+                        <template type="amp-mustache">
+                            <p>Thank you! Your feedback has been received.</p>
+                        </template>
+                    </div>
+                    <div submit-error>
+                        <template type="amp-mustache">
+                            <p>Oops! Something went wrong. Please try again.</p>
+                        </template>
+                    </div>
+                </form>
+            </body>
+            </html>
+        `;
 
-    const mailOptions = {
-        from: `"Admin" <${process.env.EMAIL_USER}>`,
-        to: instructor.email,
-        subject: `Your Profile Has Been ${action}`,
-        text: `Hello ${instructor.name}, Your profile has been ${action}. Please provide feedback.`,
-        html: ampHtml,
-        amp: ampHtml,
-    };
+        const mailOptions = {
+            from: `"Admin" <annasfurquan27@gmail.com>`,
+            to: instructor.email,
+            subject: `Your Profile Has Been ${action}`,
+            text: `Hello ${instructor.name}, Your profile has been ${action}. Please provide feedback.`,
+            html: ampHtml,
+            amp: ampHtml,
+        };
 
-    try {
-        const info = await transporter.sendMail(mailOptions);
-        await RecentActivity.create({
-            action: `Sent email with feedback form: ${action}`,
-            entity: "Instructur",
-            entityId: instructor._id,
-            metadata: { emailResponse: info.response },
-        });
-
-        console.log("Email sent:", info.response);
-    } catch (error) {
-        console.error("Email failed:", error);
-        await RecentActivity.create({
-            action: "Failed to send AMP email",
-            entity: "Instructur",
-            entityId: instructor._id,
-            metadata: { error: error.message },
-        });
-    }
-};
-
-
-// Create an instructor and send an email
-app.post("/instructurs", async (req, res) => {
-    try {
-        const i = await Instructur.create(req.body);
-        res.status(200).json(i);
-
-        await RecentActivity.create({
-            action: "Created new instructur",
-            entity: "Instructur",
-            entityId: i._id,
-        });
-
-        sendAMPEmail(i, "Created");
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
-});
-
-// Update instructor and send an email
-app.put("/instructurs/:id", async (req, res) => {
-    try {
-        const instructur = await Instructur.findByIdAndUpdate(req.params.id, req.body, { new: true });
-
-        if (!instructur) {
-            return res.status(404).json({ message: "Instructur not found" });
-        }
-
-        let activity = await RecentActivity.findOne({ entityId: instructur._id });
-
-        if (activity) {
-            activity.action = "Updated instructur";
-            activity.timestamp = Date.now();
-            await activity.save();
-        } else {
+        try {
+            const info = await transporter.sendMail(mailOptions);
             await RecentActivity.create({
-                action: "Updated instructur",
+                action: `Sent email with feedback form: ${action}`,
                 entity: "Instructur",
-                entityId: instructur._id,
+                entityId: instructor._id,
+                metadata: { emailResponse: info.response },
+            });
+
+            console.log(`Email sent to ${instructor.email}:`, info.response);
+        } catch (error) {
+            console.error(`Email failed to ${instructor.email}:`, error);
+            await RecentActivity.create({
+                action: "Failed to send AMP email",
+                entity: "Instructur",
+                entityId: instructor._id,
+                metadata: { error: error.message },
             });
         }
+    });
 
-        sendAMPEmail(instructur, "Updated");
+    // Execute all email sending promises
+    await Promise.all(emailPromises);
+};
 
-        res.status(200).json(instructur);
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
-});
-
-// Get recent activities
-app.get("/recent-activity", async (req, res) => {
+// API to send batch emails
+app.post("/send-batch-emails", async (req, res) => {
     try {
-        const activities = await RecentActivity.find().sort({ timestamp: -1 }).limit(10);
-        res.status(200).json(activities);
+        const instructors = await Instructur.find(); // Get all instructors
+        if (instructors.length === 0) {
+            return res.status(404).json({ message: "No instructors found" });
+        }
+
+        await sendBatchAMPEmails(instructors, "Updated");
+        res.status(200).json({ message: "Batch emails sent successfully!" });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
