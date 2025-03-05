@@ -8,8 +8,11 @@ const instructurSchema = mongoose.Schema(
         email: {
             type: String,
         },
-        status: {
-            type : String
+        status:{
+            type: String,
+        },
+        course: {
+            type: String,
         }
     }, { timestamps: true }
 )
