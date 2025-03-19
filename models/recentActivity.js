@@ -12,7 +12,7 @@ const recentActivitySchema = new mongoose.Schema({
     entityId: {
         type: mongoose.Schema.Types.ObjectId,
         required: true,
-        ref: 'Instructur'
+        ref: 'Instructor'
     },
     timestamp: {
         type: Date,

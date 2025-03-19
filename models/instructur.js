@@ -1,6 +1,6 @@
 const mongoose = require('mongoose')
 
-const instructurSchema = mongoose.Schema(
+const instructorSchema = mongoose.Schema(
     {
         name: {
             type : String,
@@ -8,15 +8,21 @@ const instructurSchema = mongoose.Schema(
         email: {
             type: String,
         },
-        status:{
+        offering:{
             type: String,
         },
         course: {
+            type: String,
+        },
+        campus:{
+            type: String,
+        },
+        delivery :{
             type: String,
         }
     }, { timestamps: true }
 )
 
-const Instructur = mongoose.model("Instructor", instructurSchema)
+const Instructor = mongoose.model("Instructor", instructorSchema)
 
-module.exports = Instructur;
+module.exports = Instructor;

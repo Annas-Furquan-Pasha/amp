@@ -1,13 +1,66 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const nodemailer = require("nodemailer");
-const Instructur = require("./models/instructur.js");
+const Instructor = require("./models/instructur.js");
 const RecentActivity = require("./models/recentActivity.js");
 const FormData = require("./models/form.js");
+const bodyParser = require("body-parser");
+
 const app = express();
 
+const cors = require("cors");
+app.set("trust proxy", 1);
+
+
+app.use(cors({
+    origin: "*", // Allow all origins (for testing)
+    methods: ["POST"], // Allow only POST requests
+}));
+
+
+app.use((req, res, next) => {
+    // Allow requests from Gmail and other AMP email clients
+    const allowedOrigins = [
+      'https://mail.google.com', // Gmail
+      'https://outlook.live.com', // Outlook
+      'https://mail.yahoo.com', // Yahoo Mail
+    ];
+  
+    const origin = req.headers.origin;
+    if (allowedOrigins.includes(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+    }
+  
+    // Required AMP4Email header: Specify the allowed sender email or domain
+    res.setHeader('AMP-Email-Allow-Sender', 'annasfurquan27@gmail.com');
+  
+    // Allow specific HTTP methods
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  
+    res.setHeader('AMP-Access-Control-Allow-Source-Origin', 'annasfurquan27@gmail.com');
+  
+    // Allow specific headers
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+    res.setHeader('Access-Control-Expose-Headers', 'AMP-Access-Control-Allow-Source-Origin');
+  
+    // Handle preflight requests
+    if (req.method === 'OPTIONS') {
+      return res.sendStatus(204);
+    }
+  
+    next();
+  });
+  
+// app.use(ampCors({
+//     verifyOrigin: false,
+//     allowCredentials: false,
+//     enableAmpRedirectTo: false,
+//     email: true
+//   }));
+
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(bodyParser.urlencoded({ extended: true }));
 
 // Nodemailer transporter setup
 const transporter = nodemailer.createTransport({
@@ -18,58 +71,117 @@ const transporter = nodemailer.createTransport({
     },
 });
 
+app.post("/instructor", async (req, res) => {
+    try {
+        const i = await Instructor.create(req.body);
+        res.status(200).json(i);
+
+        const activity = new RecentActivity({
+            action: "Created new instructur",
+            entity: "Instructur",
+            entityId: i._id
+        });
+        await activity.save();
+
+        console.log(i);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
 // Function to send AMP emails
-const sendBatchAMPEmails = async (instructors, course) => {
+const sendBatchAMPEmails = async (instructors) => {
     const emailPromises = instructors.map(async (instructor) => {
         const hour = new Date().getHours();
         const greeting = hour < 12 ? "Good Morning" : hour < 18 ? "Good Afternoon" : "Good Evening";
 
-        const ampHtml = `
-            <!doctype html>
-            <html ⚡4email>
-            <head>
-                <meta charset="utf-8">
-                <style amp4email-boilerplate>body{visibility:hidden}</style>
-                <script async src="https://cdn.ampproject.org/v0.js"></script>
-                <script async custom-element="amp-form" src="https://cdn.ampproject.org/v0/amp-form-0.1.js"></script>
-            </head>
-            <body>
-                <h1>${greeting}, ${instructor.name}!</h1>
-                <p>We have a new course for you: <b>${course.name}</b></p>
-                <p>Description: ${course.description}</p>
-                <p>Would you be available to teach this course?</p>
+        const ampHtml = ` <!doctype html>
+<html ⚡4email lang="en" data-css-strict>
+<head>
+<meta charset="utf-8">
+  <script async src="https://cdn.ampproject.org/v0.js"></script>
+ 
+  <script async custom-element="amp-form" src="https://cdn.ampproject.org/v0/amp-form-0.1.js"></script>
+  <script async custom-template="amp-mustache" src="https://cdn.ampproject.org/v0/amp-mustache-0.2.js"></script>
+  <style amp4email-boilerplate>body{visibility:hidden}</style>
+  <style amp-custom>
+   
+  /* Hides all inputs after successful form submission */
+  form.amp-form-submit-success.sample-form.hide-inputs > input {
+    display: none;
+  }
 
-                <form method="post" action-xhr="/submit-availability" target="_top">
-                    <input type="hidden" name="email" value="${instructor.email}">
-                    <input type="hidden" name="course" value="${course.name}">
-                    <input type="hidden" name="name" value="${instructor.name}">
-                    <input type="hidden" name="instructorId" value="${instructor._id}">
-                    <label>Choose Availability:</label><br>
-                    <input type="radio" name="availability" value="9AM - 12PM" required> 9AM - 12PM<br>
-                    <input type="radio" name="availability" value="1PM - 4PM"> 1PM - 4PM<br>
-                    <input type="radio" name="availability" value="5PM - 8PM"> 5PM - 8PM<br>
-                    <input type="radio" name="availability" value="Not Available"> Not Available<br>
-                    
-                    <button type="submit">Submit</button>
+  /* sample styles */
+  .sample-form {
+    padding: 0 var(--space-2);
+  }
+  .sample-form > * {
+    margin: var(--space-1);
+  }
+  .sample-heading {
+    margin: 0 var(--space-3);
+    margin-top: var(--space-3);
+    font-size: 18px;
+  }
+  </style>
+</head>
+<body>
+  <h2 class="sample-heading">Form Submission w-xhrith Page Reload</h2>
+  <form class="sample-form" method="get" action-xhr="https://afaeb456fcd4fdb55a389495ce934206.serveo.net/submit-availability">
+    <input type="search" placeholder="Search..." name="search">
+    <input type="submit" value="OK">
+  </form>
 
-                   
-                </form>
-            </body>
-            </html>
-        `;
+  <h2 class="sample-heading">Form Submission with Page Update</h2>
+  <!-- ## Form submission with client-side rendering -->
+  <form class="sample-form" method="post" action-xhr="https://d0dc19381db4a2e61b8dd5f6734680e4.serveo.net/submit-availability">
+    <input type="text" name="name" placeholder="Name..." required>
+    <input type="email" name="email" placeholder="Email..." required>
+    <input type="submit" value="Subscribe">
+    <div hidden submit-success>
+      <template type="amp-mustache">
+        Success! Thanks {{name}} for trying the <code>amp-form</code> demo! Try to insert the word "error" as a name input in the form to see how <code>amp-form</code> handles errors.
+      </template>
+    </div>
+    <div hidden submit-error>
+      <template type="amp-mustache">
+        Error! Thanks {{name}} for trying the <code>amp-form</code> demo with an error response.
+      </template>
+    </div>
+  </form>
+    <h2 class="sample-heading">Input type="radio"</h2>
+    <form class="sample-form" method="post" action-xhr=" https://d0dc19381db4a2e61b8dd5f6734680e4.serveo.net/submit-availability">
+      <input type="radio" id="cat" name="favourite animal" value="cat" checked>
+      <label for="cat">Cat</label>
+      <input type="radio" id="dog" name="favourite animal" value="dog">
+      <label for="dog">Dog</label>
+      <input type="radio" id="other" name="favourite animal" value="other">
+      <label for="other">Other</label>
+      <input type="submit" value="OK">
+      <div submit-success>
+        Success!
+      </div>
+      <div submit-error>
+        Error!
+      </div>
+    </form>
+</body>
+</html>
+`;
+
 
         const mailOptions = {
             from: "Admin <annasfurquan27@gmail.com>",
             to: instructor.email,
-            subject: `Availability Request for ${course.name}`,
+            subject: `Availability Request for ${instructor.course}`,
             html: ampHtml,
-            amp: ampHtml,
+            // amp: ampHtml,
         };
 
         try {
             await transporter.sendMail(mailOptions);
             await RecentActivity.create({
-                action: `Sent availability request for ${course.name}`,
+                action: `Sent availability request for ${instructor.course}`,
                 entity: "Instructor",
                 entityId: instructor._id,
             });
@@ -84,20 +196,25 @@ const sendBatchAMPEmails = async (instructors, course) => {
 // API to send batch emails
 app.post("/send-batch-emails", async (req, res) => {
     try {
-        const instructors = await Instructur.find();
+        const instructors = await Instructor.find();
         if (instructors.length === 0) return res.status(404).json({ message: "No instructors found" });
 
-        await sendBatchAMPEmails(instructors, { name: 'CSE', description: 'This is a great course' });
+        await sendBatchAMPEmails(instructors);
         res.status(200).json({ message: "Batch emails sent successfully!" });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
 });
 
+
 // API to record instructor availability response
 app.post("/submit-availability", async (req, res) => {
+    console.log("i'm here");
+    console.log(req.body);
     try {
         const { email, course, availability, name, instructorId } = req.body;
+        console.log(req.body)
+        console.log(email, course, availability, name, instructorId)
         if (!email || !course || !availability) {
             return res.status(400).json({ message: "Missing required fields" });
         }
@@ -138,17 +255,17 @@ const sendFollowUpEmails = async () => {
     }
 };
 
-setInterval(sendFollowUpEmails, 10 * 1000); // Runs every 24 hours
+// setInterval(sendFollowUpEmails, 10 * 1000); // Runs every 24 hours
 
 
 
 
 // Connect to MongoDB
-mongoose.connect("mongodb+srv://annasfurquan:Fsrxq13jTKVK8GXk@bac.6perr.mongodb.net/Node-API?retryWrites=true&w=majority&appName=Bac")
+mongoose.connect(process.env.MONGO_URL)
     .then(() => {
         console.log("Connected to the database");
-        app.listen(3000, () => {
-            console.log("Server is running on port 3000");
+        app.listen(process.env.PORT, () => {
+            console.log("Server is running on port 3001");
         });
     })
     .catch((error) => {
