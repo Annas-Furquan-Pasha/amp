@@ -127,14 +127,14 @@ const sendBatchAMPEmails = async (instructors) => {
 </head>
 <body>
   <h2 class="sample-heading">Form Submission w-xhrith Page Reload</h2>
-  <form class="sample-form" method="get" action-xhr="https://afaeb456fcd4fdb55a389495ce934206.serveo.net/submit-availability">
+  <form class="sample-form" method="get" action-xhr="https://deft-gumdrop-761152.netlify.app/submit-availability">
     <input type="search" placeholder="Search..." name="search">
     <input type="submit" value="OK">
   </form>
 
   <h2 class="sample-heading">Form Submission with Page Update</h2>
   <!-- ## Form submission with client-side rendering -->
-  <form class="sample-form" method="post" action-xhr="https://d0dc19381db4a2e61b8dd5f6734680e4.serveo.net/submit-availability">
+  <form class="sample-form" method="post" action-xhr="https://deft-gumdrop-761152.netlify.app/submit-availability">
     <input type="text" name="name" placeholder="Name..." required>
     <input type="email" name="email" placeholder="Email..." required>
     <input type="submit" value="Subscribe">
@@ -150,7 +150,7 @@ const sendBatchAMPEmails = async (instructors) => {
     </div>
   </form>
     <h2 class="sample-heading">Input type="radio"</h2>
-    <form class="sample-form" method="post" action-xhr=" https://d0dc19381db4a2e61b8dd5f6734680e4.serveo.net/submit-availability">
+    <form class="sample-form" method="post" action-xhr="https://deft-gumdrop-761152.netlify.app/submit-availability">
       <input type="radio" id="cat" name="favourite animal" value="cat" checked>
       <label for="cat">Cat</label>
       <input type="radio" id="dog" name="favourite animal" value="dog">
